@@ -1,0 +1,52 @@
+name: Build Zenith Radyo
+
+on:
+  push:
+    branches: ['**']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Flutter projesi olustur
+        run: |
+          flutter create --org com.zenith --project-name zenith_radyo --platforms=android app
+          rm -rf app/test
+          cp app_pubspec.yaml app/pubspec.yaml
+          cp *.dart app/lib/
+          python3 patch_android.py app
+
+      - name: APK derle
+        working-directory: app
+        run: |
+          flutter pub get
+          flutter build apk --release
+
+      - name: APK hazirla
+        run: cp app/build/app/outputs/flutter-apk/app-release.apk ZenithRadyo.apk
+
+      - name: Release yayinla
+        uses: ncipollo/release-action@v1
+        with:
+          tag: radyo
+          name: Zenith Radyo
+          artifacts: ZenithRadyo.apk
+          allowUpdates: true
+          replacesArtifacts: true
+          makeLatest: true
+          token: ${{ secrets.GITHUB_TOKEN }}

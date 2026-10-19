@@ -1,0 +1,20 @@
+name: zenith_radyo
+description: Zenith Radyo - Türkiye radyo istasyonları, arka planda çalma, profil ve yayıncı paneli.
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  provider: ^6.1.2
+  just_audio: ^0.9.40
+  just_audio_background: ^0.0.1-beta.13
+  shared_preferences: ^2.3.2
+  http: ^1.2.2
+  crypto: ^3.0.5
+
+flutter:
+  uses-material-design: true
