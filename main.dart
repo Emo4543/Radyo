@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';
 import 'package:just_audio_background/just_audio_background.dart';
@@ -30,14 +31,16 @@ Future<void> main() async {
           ),
         );
 
-    try {
-      await JustAudioBackground.init(
-        androidNotificationChannelId: 'com.zenith.radyo.audio',
-        androidNotificationChannelName: 'Radyo çalma',
-        androidNotificationOngoing: true,
-      );
-    } catch (e) {
-      startupNote = 'Arka plan ses servisi başlatılamadı: $e';
+    if (Platform.isAndroid || Platform.isIOS) {
+      try {
+        await JustAudioBackground.init(
+          androidNotificationChannelId: 'com.zenith.radyo.audio',
+          androidNotificationChannelName: 'Radyo çalma',
+          androidNotificationOngoing: true,
+        );
+      } catch (e) {
+        startupNote = 'Arka plan ses servisi başlatılamadı: $e';
+      }
     }
 
     final theme = ThemeController();
@@ -75,6 +78,15 @@ class RadyoApp extends StatelessWidget {
       theme: buildTheme(Brightness.light),
       darkTheme: buildTheme(Brightness.dark),
       themeMode: tc.mode,
+      builder: (context, child) => Container(
+        color: const Color(0xFF0A0E1A),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 520),
+            child: child,
+          ),
+        ),
+      ),
       home: const _Gate(),
     );
   }

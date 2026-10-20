@@ -31,7 +31,7 @@ class PlayerService extends ChangeNotifier {
         nowPlaying = t;
         notifyListeners();
       }
-    });
+    }, onError: (Object e) {});
     _player.playbackEventStream.listen((_) {}, onError: (Object e, StackTrace st) {
       error = 'Yayın açılamadı. Başka bir istasyon dene.';
       loading = false;

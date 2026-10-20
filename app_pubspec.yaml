@@ -12,6 +12,7 @@ dependencies:
   provider: ^6.1.2
   just_audio: ^0.9.40
   just_audio_background: ^0.0.1-beta.13
+  just_audio_windows: ^0.2.2
   shared_preferences: ^2.3.2
   http: ^1.2.2
   crypto: ^3.0.5
