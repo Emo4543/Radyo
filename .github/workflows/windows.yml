@@ -28,6 +28,8 @@ jobs:
 
       - name: Windows derle
         working-directory: winapp
+        env:
+          CL: /D_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS
         run: |
           flutter pub get
           flutter build windows --release
