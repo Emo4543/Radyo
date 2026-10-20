@@ -70,4 +70,22 @@ adaptive = '''<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/a
 for n in ('ic_launcher', 'ic_launcher_round'):
     open(os.path.join(res, 'mipmap-anydpi-v26', n + '.xml'), 'w').write(adaptive)
 
+
+# ---- R8 kod kucultmeyi kapat (eklentiler bozuluyor) ----
+gdir = os.path.join(root, 'android', 'app')
+for name in ('build.gradle.kts', 'build.gradle'):
+    gp = os.path.join(gdir, name)
+    if not os.path.exists(gp):
+        continue
+    g = open(gp, encoding='utf-8').read()
+    if name.endswith('.kts'):
+        extra = '\n            isMinifyEnabled = false\n            isShrinkResources = false'
+    else:
+        extra = '\n            minifyEnabled false\n            shrinkResources false'
+    g, n = re.subn(
+        r'(buildTypes\s*\{\s*(?:getByName\("release"\)|release)\s*\{)',
+        lambda m: m.group(1) + extra, g, count=1)
+    open(gp, 'w', encoding='utf-8').write(g)
+    print(name, 'release yamandi' if n else 'UYARI: release blogu bulunamadi')
+
 print('Android yamasi uygulandi')
