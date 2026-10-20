@@ -1,50 +1,27 @@
-name: Build Zenith Radyo Windows
+name: zenith_radyo
+description: Zenith Radyo Uygulamasi
+publish_to: 'none'
+version: 1.0.0+1
 
-on:
-  push:
-    branches: ['**']
-  workflow_dispatch:
+environment:
+  sdk: '>=3.0.0 <4.0.0'
 
-permissions:
-  contents: write
+dependencies:
+  flutter:
+    sdk: flutter
+  provider: ^6.1.2
+  just_audio: ^0.9.40
+  just_audio_background: ^0.0.1-beta.13
+  just_audio_windows: ^0.2.2
+  shared_preferences: ^2.3.2
+  http: ^1.2.2
+  crypto: ^3.0.5
+  supabase_flutter: ^2.5.0
 
-jobs:
-  build:
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
 
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-
-      - name: Flutter projesi olustur
-        shell: bash
-        run: |
-          flutter create --org com.zenith --project-name zenith_radyo --platforms=windows winapp
-          rm -rf winapp/test
-          cp app_pubspec.yaml winapp/pubspec.yaml
-          cp *.dart winapp/lib/
-
-      - name: Windows derle
-        working-directory: winapp
-        env:
-          CL: /D_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS
-        run: |
-          flutter pub get
-          flutter build windows --release
-
-      - name: Zip hazirla
-        shell: pwsh
-        run: Compress-Archive -Path winapp/build/windows/x64/runner/Release/* -DestinationPath ZenithRadyoPC.zip
-
-      - name: Release yayinla
-        uses: ncipollo/release-action@v1
-        with:
-          tag: radyo-pc
-          name: Zenith Radyo PC
-          artifacts: ZenithRadyoPC.zip
-          allowUpdates: true
-          replacesArtifacts: true
-          makeLatest: false
-          token: ${{ secrets.GITHUB_TOKEN }}
+flutter:
+  uses-material-design: true
