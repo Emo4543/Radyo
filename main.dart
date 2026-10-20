@@ -91,7 +91,7 @@ class _AuthScreenState extends State<AuthScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Giriş Hatası: Kullanıcı adı veya şifre yanlış!')),
+          const SnackBar(content: Text('Giriş Hatası: Kullanıcı adı veya şifre yanlış!')),
         );
       }
     } finally {
@@ -531,7 +531,7 @@ class _GlobalChatTabState extends State<GlobalChatTab> {
                         borderRadius: BorderRadius.circular(14),
                       ),
                       child: Column(
-                        crossAxisAlignment: isMe ? CrossAlignment.end : CrossAlignment.start,
+                        crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
                         children: [
                           Text(
                             isMe ? currentUsername : 'Kullanıcı',
@@ -650,18 +650,18 @@ class ProfileTab extends StatelessWidget {
             Card(
               color: const Color(0xFF181828),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              child: Column(
+              child: const Column(
                 children: [
                   ListTile(
-                    leading: const Icon(Icons.account_circle, color: Colors.deepPurpleAccent),
-                    title: const Text('Hesap Türü'),
-                    subtitle: const Text('Ücretsiz Kullanıcı'),
+                    leading: Icon(Icons.account_circle, color: Colors.deepPurpleAccent),
+                    title: Text('Hesap Türü'),
+                    subtitle: Text('Ücretsiz Kullanıcı'),
                   ),
-                  const Divider(height: 1, color: Colors.white10),
+                  Divider(height: 1, color: Colors.white10),
                   ListTile(
-                    leading: const Icon(Icons.verified_user, color: Colors.deepPurpleAccent),
-                    title: const Text('Durum'),
-                    subtitle: const Text('Doğrulanmış Zenith Üyesi'),
+                    leading: Icon(Icons.verified_user, color: Colors.deepPurpleAccent),
+                    title: Text('Durum'),
+                    subtitle: Text('Doğrulanmış Zenith Üyesi'),
                   ),
                 ],
               ),
