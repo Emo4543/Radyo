@@ -35,7 +35,7 @@ jobs:
         working-directory: app
         run: |
           flutter pub get
-          flutter build apk --release
+          flutter build apk --release --no-shrink
 
       - name: APK hazirla
         run: cp app/build/app/outputs/flutter-apk/app-release.apk ZenithRadyo.apk
