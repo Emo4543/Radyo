@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -92,7 +91,7 @@ class _AuthScreenState extends State<AuthScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Hata: ${e.toString()}')),
+          SnackBar(content: Text('Giriş Hatası: Kullanıcı adı veya şifre yanlış!')),
         );
       }
     } finally {
@@ -196,20 +195,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> {
         title: const Text('Zenith Radyo', style: TextStyle(fontWeight: FontWeight.bold)),
         centerTitle: true,
         backgroundColor: const Color(0xFF141424),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () async {
-              await supabase.auth.signOut();
-              if (context.mounted) {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (_) => const AuthScreen()),
-                );
-              }
-            },
-          )
-        ],
+        elevation: 0,
       ),
       body: _pages[_selectedIndex],
       bottomNavigationBar: BottomNavigationBar(
@@ -229,7 +215,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> {
 }
 
 // ==========================================
-// 3. RADYOLAR VE CANLI CANLI ÇALAR (Eski Tam Liste)
+// 3. RADYOLAR VE FAVORİLER SEKMESİ
 // ==========================================
 class RadioPlayerTab extends StatefulWidget {
   const RadioPlayerTab({super.key});
@@ -244,8 +230,9 @@ class _RadioPlayerTabState extends State<RadioPlayerTab> {
   String _currentStationName = 'Bir radyo seçin';
   bool _isPlaying = false;
   bool _isLoading = false;
+  bool _showFavoritesOnly = false;
+  List<String> _favoriteRadios = [];
 
-  // Türkçe ve Popüler Radyo Listesi
   final List<Map<String, String>> _radios = [
     {'name': 'Kral FM', 'url': 'https://kralfm.radyotvonline.net/kralfm.stream'},
     {'name': 'Kral Pop', 'url': 'https://kralpop.radyotvonline.net/kralpop.stream'},
@@ -269,6 +256,7 @@ class _RadioPlayerTabState extends State<RadioPlayerTab> {
   void initState() {
     super.initState();
     _audioPlayer = AudioPlayer();
+    _loadFavorites();
     _audioPlayer.playerStateStream.listen((state) {
       if (mounted) {
         setState(() {
@@ -278,6 +266,25 @@ class _RadioPlayerTabState extends State<RadioPlayerTab> {
         });
       }
     });
+  }
+
+  Future<void> _loadFavorites() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _favoriteRadios = prefs.getStringList('favorites') ?? [];
+    });
+  }
+
+  Future<void> _toggleFavorite(String name) async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      if (_favoriteRadios.contains(name)) {
+        _favoriteRadios.remove(name);
+      } else {
+        _favoriteRadios.add(name);
+      }
+    });
+    await prefs.setStringList('favorites', _favoriteRadios);
   }
 
   Future<void> _playRadio(String name, String url) async {
@@ -298,7 +305,7 @@ class _RadioPlayerTabState extends State<RadioPlayerTab> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Yayın açılırken hata oluştu: $e')),
+          SnackBar(content: Text('Yayın açılamadı: $e')),
         );
       }
     }
@@ -312,11 +319,15 @@ class _RadioPlayerTabState extends State<RadioPlayerTab> {
 
   @override
   Widget build(BuildContext context) {
+    final displayedRadios = _showFavoritesOnly
+        ? _radios.where((r) => _favoriteRadios.contains(r['name'])).toList()
+        : _radios;
+
     return Column(
       children: [
         // Şu An Çalan Barı
         Container(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(18),
           decoration: const BoxDecoration(
             color: Color(0xFF1C1C2E),
             borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
@@ -373,45 +384,78 @@ class _RadioPlayerTabState extends State<RadioPlayerTab> {
           ),
         ),
 
-        const SizedBox(height: 10),
+        // Favori Filtre Butonu
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                _showFavoritesOnly ? 'Favori Radyolarım' : 'Tüm Radyolar',
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              FilterChip(
+                label: const Text('Favoriler'),
+                selected: _showFavoritesOnly,
+                selectedColor: Colors.deepPurpleAccent,
+                onSelected: (val) => setState(() => _showFavoritesOnly = val),
+              ),
+            ],
+          ),
+        ),
 
         // Radyo Listesi
         Expanded(
-          child: ListView.builder(
-            itemCount: _radios.length,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            itemBuilder: (context, index) {
-              final radio = _radios[index];
-              final isSelected = _currentPlayingUrl == radio['url'];
+          child: displayedRadios.isEmpty
+              ? const Center(child: Text('Henüz favori radyo eklemediniz.'))
+              : ListView.builder(
+                  itemCount: displayedRadios.length,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  itemBuilder: (context, index) {
+                    final radio = displayedRadios[index];
+                    final isSelected = _currentPlayingUrl == radio['url'];
+                    final isFav = _favoriteRadios.contains(radio['name']);
 
-              return Card(
-                color: isSelected ? const Color(0xFF2A2A48) : const Color(0xFF181826),
-                margin: const EdgeInsets.symmetric(vertical: 4),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                child: ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: isSelected ? Colors.deepPurpleAccent : Colors.white12,
-                    child: Icon(
-                      isSelected && _isPlaying ? Icons.volume_up : Icons.radio,
-                      color: isSelected ? Colors.white : Colors.grey,
-                    ),
-                  ),
-                  title: Text(
-                    radio['name']!,
-                    style: TextStyle(
-                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                      color: isSelected ? Colors.deepPurpleAccent : Colors.white,
-                    ),
-                  ),
-                  trailing: Icon(
-                    isSelected && _isPlaying ? Icons.pause : Icons.play_arrow,
-                    color: Colors.grey,
-                  ),
-                  onTap: () => _playRadio(radio['name']!, radio['url']!),
+                    return Card(
+                      color: isSelected ? const Color(0xFF2A2A48) : const Color(0xFF181826),
+                      margin: const EdgeInsets.symmetric(vertical: 4),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      child: ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: isSelected ? Colors.deepPurpleAccent : Colors.white12,
+                          child: Icon(
+                            isSelected && _isPlaying ? Icons.volume_up : Icons.radio,
+                            color: isSelected ? Colors.white : Colors.grey,
+                          ),
+                        ),
+                        title: Text(
+                          radio['name']!,
+                          style: TextStyle(
+                            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                            color: isSelected ? Colors.deepPurpleAccent : Colors.white,
+                          ),
+                        ),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: Icon(
+                                isFav ? Icons.favorite : Icons.favorite_border,
+                                color: isFav ? Colors.redAccent : Colors.grey,
+                              ),
+                              onPressed: () => _toggleFavorite(radio['name']!),
+                            ),
+                            Icon(
+                              isSelected && _isPlaying ? Icons.pause : Icons.play_arrow,
+                              color: Colors.grey,
+                            ),
+                          ],
+                        ),
+                        onTap: () => _playRadio(radio['name']!, radio['url']!),
+                      ),
+                    );
+                  },
                 ),
-              );
-            },
-          ),
         ),
       ],
     );
@@ -419,7 +463,7 @@ class _RadioPlayerTabState extends State<RadioPlayerTab> {
 }
 
 // ==========================================
-// 4. CANLI GLOBAL SOHBET
+// 4. CANLI GLOBAL SOHBET SEKMESİ
 // ==========================================
 class GlobalChatTab extends StatefulWidget {
   const GlobalChatTab({super.key});
@@ -448,6 +492,9 @@ class _GlobalChatTabState extends State<GlobalChatTab> {
 
   @override
   Widget build(BuildContext context) {
+    final currentUser = supabase.auth.currentUser;
+    final currentUsername = currentUser?.email?.split('@').first ?? 'Anonim';
+
     return Column(
       children: [
         Expanded(
@@ -472,13 +519,13 @@ class _GlobalChatTabState extends State<GlobalChatTab> {
                 itemCount: messages.length,
                 itemBuilder: (context, index) {
                   final msg = messages[index];
-                  final isMe = msg['user_id'] == supabase.auth.currentUser?.id;
+                  final isMe = msg['user_id'] == currentUser?.id;
 
                   return Align(
                     alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
                     child: Container(
                       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                       decoration: BoxDecoration(
                         color: isMe ? Colors.deepPurpleAccent : const Color(0xFF242438),
                         borderRadius: BorderRadius.circular(14),
@@ -487,8 +534,17 @@ class _GlobalChatTabState extends State<GlobalChatTab> {
                         crossAxisAlignment: isMe ? CrossAlignment.end : CrossAlignment.start,
                         children: [
                           Text(
+                            isMe ? currentUsername : 'Kullanıcı',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: isMe ? Colors.white70 : Colors.purpleAccent,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
                             msg['content'] ?? '',
-                            style: const TextStyle(color: Colors.white, fontSize: 15),
+                            style: const TextStyle(color: Colors.white, fontSize: 14),
                           ),
                         ],
                       ),
@@ -527,7 +583,7 @@ class _GlobalChatTabState extends State<GlobalChatTab> {
 }
 
 // ==========================================
-// 5. PROFİL SEKMESİ
+// 5. YENİLENMİŞ PROFİL SEKMESİ
 // ==========================================
 class ProfileTab extends StatelessWidget {
   const ProfileTab({super.key});
@@ -537,30 +593,103 @@ class ProfileTab extends StatelessWidget {
     final user = supabase.auth.currentUser;
     final username = user?.email?.split('@').first ?? 'Kullanıcı';
 
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const CircleAvatar(
-            radius: 50,
-            backgroundColor: Colors.deepPurpleAccent,
-            child: Icon(Icons.person, size: 55, color: Colors.white),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            username,
-            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 8),
-          const Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.circle, color: Colors.greenAccent, size: 12),
-              SizedBox(width: 6),
-              Text('Çevrimiçi', style: TextStyle(color: Colors.grey)),
-            ],
-          ),
-        ],
+    return Scaffold(
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          children: [
+            const SizedBox(height: 20),
+            Center(
+              child: Stack(
+                children: [
+                  Container(
+                    width: 110,
+                    height: 110,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: const LinearGradient(
+                        colors: [Colors.deepPurpleAccent, Colors.purpleAccent],
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.deepPurpleAccent.withOpacity(0.4),
+                          blurRadius: 15,
+                          spreadRadius: 2,
+                        )
+                      ],
+                    ),
+                    child: const Icon(Icons.person, size: 65, color: Colors.white),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              username.toUpperCase(),
+              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, letterSpacing: 1.2),
+            ),
+            const SizedBox(height: 6),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 10,
+                  height: 10,
+                  decoration: const BoxDecoration(
+                    color: Colors.greenAccent,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                const Text('Çevrimiçi', style: TextStyle(color: Colors.grey, fontSize: 14)),
+              ],
+            ),
+            const SizedBox(height: 32),
+
+            // Profil Kartları
+            Card(
+              color: const Color(0xFF181828),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              child: Column(
+                children: [
+                  ListTile(
+                    leading: const Icon(Icons.account_circle, color: Colors.deepPurpleAccent),
+                    title: const Text('Hesap Türü'),
+                    subtitle: const Text('Ücretsiz Kullanıcı'),
+                  ),
+                  const Divider(height: 1, color: Colors.white10),
+                  ListTile(
+                    leading: const Icon(Icons.verified_user, color: Colors.deepPurpleAccent),
+                    title: const Text('Durum'),
+                    subtitle: const Text('Doğrulanmış Zenith Üyesi'),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 24),
+
+            // Çıkış Yap Butonu
+            ElevatedButton.icon(
+              icon: const Icon(Icons.logout, color: Colors.white),
+              label: const Text('Hesaptan Çıkış Yap', style: TextStyle(fontSize: 16, color: Colors.white)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.redAccent.withOpacity(0.8),
+                minimumSize: const Size(double.infinity, 50),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              onPressed: () async {
+                await supabase.auth.signOut();
+                if (context.mounted) {
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(builder: (_) => const AuthScreen()),
+                  );
+                }
+              },
+            ),
+          ],
+        ),
       ),
     );
   }
